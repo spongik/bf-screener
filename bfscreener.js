@@ -1,6 +1,19 @@
-var fs = require('fs'),
+﻿var fs = require('fs'),
   webpage = require('webpage'),
   system = require('system');
+
+if (system.args[1] == '/?') {
+  console.log('Available params:');
+  console.log('\t--out=screens\t\tOutput directory');
+  console.log('\t--env=qa\t\tBooking form environment (qa, qa2, prod)');
+  console.log('\t--provider=42\t\tBooking form provider');
+  console.log('\t--theme=default\t\tBooking form theme');
+  console.log('\t--theme=size\t\tScreen size (xs, sm, md, lg)');
+  console.log('');
+  console.log('Example: phantom bfscreener.js --out=imgs --env=prod');
+  console.log('');
+  phantom.exit();
+}
 
 var Utils = {
 
@@ -8,7 +21,7 @@ var Utils = {
     isArray = isArray == undefined ? false : isArray;
     
     var argsMap = system.args.slice(1).map(function(arg) {
-      return arg.explode('=');
+      return arg.split('=');
     });
       
     if (isArray) {
@@ -26,8 +39,32 @@ var Utils = {
     }
   },
 
-  selectors: {
-    rooms: '.room__list'
+  cleanDir: function(dir) {
+    if (fs.isDirectory(dir)) {
+      for (var i = 1;; i++) {
+        var path = dir + ' [' + i + ']';
+        if (!fs.isDirectory(path)) {
+          fs.copyTree(dir, path);
+          fs.removeTree(dir);
+          return;
+        }
+      }
+    }
+  },
+
+  _renderPageIndex: 1,
+
+  renderPage: function(page, outDir, name) {
+    for (var i = 0;; i++) {
+      var path = outDir + '/' + this._renderPageIndex + '. ' 
+        + name + (i > 0 ? ' [' + i + ']' : '') + '.png';
+
+      if (!fs.exists(path)) {
+        page.render(path);
+        this._renderPageIndex++;
+        return;
+      }
+    }
   },
 
   waitForElement: function(page, selector, successCb, timeoutCb) {
@@ -40,14 +77,16 @@ var Utils = {
       if (exists) {
         clearTimeout(timeout);
         clearInterval(wait);
-        successCb();
+        setTimeout(function() {
+          successCb();
+        }, 200);
       }
     }, 100);
 
     timeout = setTimeout(function() {
       clearInterval(wait);
       timeoutCb('waitForElement("' + selector + '") timeout');
-    }, 4000);
+    }, 5000);
   }
 }; 
 
@@ -56,7 +95,7 @@ var Config = function() {
   var defaults = {
     env: 'qa',
     provider: '42',
-    theme: '42',
+    theme: 'default',
     size: 'lg'
   };
 
@@ -117,10 +156,12 @@ var ScenarioRunner = function(config) {
   
   var context = this;
   var scenarios = [];
+  var total = 0;
 
   var runNextScenario = function() {
     var scenario = scenarios.shift();
-    console.log('Running ' + scenario.name);
+    var remains = total - scenarios.length;
+    console.log('[' + remains + '/' + total + '] ' + scenario.name + ' (' + scenario.tags.join(', ') + ')');
     scenario.run();
   };
 
@@ -140,9 +181,11 @@ var ScenarioRunner = function(config) {
     runNextScenario();
   };
 
-  this.register = function(name, scenarioParams, scenarioCb) {
+  this.register = function(name, tags, scenarioParams, scenarioCb) {
+    total++;
     scenarios.push({
       name: name,
+      tags: tags,
       run: function() {
         var params = config.combine(scenarioParams);
         var page = webpage.create();
@@ -152,7 +195,7 @@ var ScenarioRunner = function(config) {
           if (status !== 'success') {
             failed('cant open ' + params.url + ' (' + status + ')');
           } else {
-            scenarioCb(page, done, failed);
+            scenarioCb(page, name, done, failed);
           }
         });
       }
@@ -160,23 +203,35 @@ var ScenarioRunner = function(config) {
   };
 };
 
+var Selectors = {
+  searchFilter: '.p-search-filter__form',
+  rooms: '.room__list'
+};
+
 var config = new Config();
 var runner = new ScenarioRunner(config);
 
+var outDir = Utils.getInputVar('out', 'screens');
+Utils.cleanDir(outDir);
+
 // SCENARIOS
 
-runner.register('Test', {}, function(page, successCb, failedCb) {
-  Utils.waitForElement(page, Utils.selectors.rooms, function() {
-    page.render('test.png');
+runner.register('Large screen size', ['lg'], {
+    size: 'lg'
+  }, function(page, name, successCb, failedCb) {
+  Utils.waitForElement(page, Selectors.searchFilter, function() {
+    Utils.renderPage(page, outDir, name);
     successCb();
   }, failedCb);
 });
 
-runner.register('Test', { size: 'xs' }, function(page, successCb, failedCb) {
-  setTimeout(function() {
-    page.render('test2.png');
+runner.register('Phone screen size', ['xs'], {
+    size: 'xs'
+  }, function(page, name, successCb, failedCb) {
+  Utils.waitForElement(page, Selectors.searchFilter, function() {
+    Utils.renderPage(page, outDir, name);
     successCb();
-  }, 2000);
+  }, failedCb);
 });
 
 // END SCENARIOS
