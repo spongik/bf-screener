@@ -9,7 +9,7 @@ if (system.args[1] == '/?') {
   console.log('\t--tag\t\tOnly run scenarions with given tag. Multiple tags are allowed');
   console.log('\t--lng=ru\t\tBooking form language');
   console.log('\t--cur\t\tBooking form currency');
-  console.log('\t--provider=42\t\tBooking form provider');
+  console.log('\t--provider=2796\t\tBooking form provider');
   console.log('\t--theme=default\t\tBooking form theme');
   console.log('\t--size=lg\t\tScreen size (xs, sm, md, lg)');
   console.log('');
@@ -86,7 +86,7 @@ var Utils = {
     timeout = setTimeout(function() {
       clearInterval(wait);
       timeoutCb('waitForElement("' + selector + '") timeout');
-    }, 5000);
+    }, 10000);
   },
 
   clickElement: function(page, selector, successCb) {
@@ -111,7 +111,7 @@ var Config = function() {
     env: 'qa',
     language: 'ru',
     currency: '',
-    provider: '42',
+    provider: '2796',
     theme: 'default',
     size: 'lg'
   };
@@ -235,6 +235,8 @@ var ScenarioRunner = function(config, allowedTags) {
         var params = config.combine(scenarioParams);
         var page = webpage.create();
 
+        console.log(params.url);
+
         page.viewportSize = params.viewport;
         page.open(params.url, function (status) {
           if (status !== 'success') {
@@ -308,6 +310,9 @@ var Selectors = {
   searchButton: '.p-search-filter__button',
   
   roomsListPage: '.room__list',
+  roomRateExpand: '.rate-plan__title .x-title',
+  roomRatesExpand: '.rate-plan__expand',
+  roomDescriptionExpand: '.room__name .x-title',
   roomInfoButton: '.room__list .x-room-group',
   roomBookButton: '.x-rate-plan-list .rate-plan__book-btn',
   roomQuantitySelect: '.x-rate-plan-list .ui-select-container .selectize-input',
@@ -317,10 +322,15 @@ var Selectors = {
   roomInfoRateDetails: '.rate-plan__open-details',
 
   previewPage: '.p-preview',
+  previewTransferExpand: '.x-transfer .x-title',
 
-  paymentPage: '.x-order',
+  paymentPage: '.x-payment-list',
+  paymentOrderExpand: '.x-order__summary',
+  paymentCancellationExpand: '.x-order__cancellation-btn',
   
-  cartProccedBooking: '.x-cart__summary-btn'
+  cartProccedBooking: '.x-cart__summary-btn',
+  
+  modalClose: '.x-modal__close-btn'
 };
 
 // STARTUP
@@ -338,23 +348,40 @@ Utils.cleanDir(outDir);
 // common vars
 
 var today = new Date();
+var monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 5) % 7) + 14);
+var tuesday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 4) % 7) + 14);
+var wednesday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 3) % 7) + 14);
 var nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
 
 // register scenarios
 
 runner.register('Common screen width (1980px) with manual accommodation', ['lg', 'manual', 'search', 'rooms', 'preview'], {
-  accommodationMode: 'manual'
+  accommodationMode: 'manual',
+  date: Utils.formatDate(wednesday)
 }, new ScenarioCallChain()
     .wait(Selectors.searchFilterPage)
     .render(outDir)
     .click(Selectors.searchButton)
     .wait(Selectors.roomsListPage)
     .render(outDir)
+    .click(Selectors.roomRateExpand)
+    .click(Selectors.roomRatesExpand)
+    .click(Selectors.roomDescriptionExpand)
+    .render(outDir)
+    .click(Selectors.roomRateExpand)
+    .click(Selectors.roomRatesExpand)
+    .click(Selectors.roomDescriptionExpand)
     .click(Selectors.roomQuantitySelect)
     .click(Selectors.roomQuantitySelectOption)
     .render(outDir)
     .click(Selectors.cartProccedBooking)
     .wait(Selectors.previewPage)
+    .click(Selectors.previewTransferExpand)
+    .render(outDir)
+    .click(Selectors.cartProccedBooking)
+    .click(Selectors.paymentOrderExpand)
+    .click(Selectors.paymentCancellationExpand)
+    .wait(Selectors.paymentPage)
     .render(outDir)
     .done()
 );
@@ -364,7 +391,8 @@ runner.register('Minimum screen width (200px) with auto accommodation', ['xs', '
     width: 200,
     height: 800
   },
-  accommodationMode: 'auto'
+  accommodationMode: 'auto',
+  date: Utils.formatDate(wednesday)
 }, new ScenarioCallChain()
     .wait(Selectors.searchFilterPage)
     .render(outDir)
@@ -376,8 +404,15 @@ runner.register('Minimum screen width (200px) with auto accommodation', ['xs', '
     .render(outDir)
     .click(Selectors.roomInfoRateDetails)
     .render(outDir)
+    .click(Selectors.modalClose)
     .click(Selectors.roomBookButton)
     .wait(Selectors.previewPage)
+    .click(Selectors.previewTransferExpand)
+    .render(outDir)
+    .click(Selectors.cartProccedBooking)
+    .click(Selectors.paymentOrderExpand)
+    .click(Selectors.paymentCancellationExpand)
+    .wait(Selectors.paymentPage)
     .render(outDir)
     .done()
 );
@@ -394,13 +429,15 @@ runner.register('Azimut', ['lg', 'manual', 'search', 'rooms', 'payment', 'azimut
     .wait(Selectors.roomsListPage)
     .render(outDir)
     .click(Selectors.roomBookButton)
+    .click(Selectors.paymentOrderExpand)
+    .click(Selectors.paymentCancellationExpand)
     .wait(Selectors.paymentPage)
     .render(outDir)
     .done()
 );
 
 runner.register('Calendar with common screen width (1980px)', ['lg', 'calendar'], {
-  nights: 10,
+  date: Utils.formatDate(wednesday)
 }, new ScenarioCallChain()
     .click(Selectors.searchCalendar)
     .render(outDir)
@@ -409,7 +446,7 @@ runner.register('Calendar with common screen width (1980px)', ['lg', 'calendar']
 
 runner.register('Calendar with phone screen width (320px)', ['xs', 'calendar'], {
   size: 'xs',
-  nights: 10
+  date: Utils.formatDate(wednesday)
 }, new ScenarioCallChain()
     .click(Selectors.searchCalendar)
     .render(outDir)
