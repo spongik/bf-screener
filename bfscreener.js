@@ -6,11 +6,12 @@ if (system.args[1] == '/?') {
   console.log('Available params:');
   console.log('\t--out=screens\t\tOutput directory');
   console.log('\t--env=qa\t\tBooking form environment (qa, qa2, prod)');
+  console.log('\t--tag\t\tOnly run scenarions with given tag. Multiple tags are allowed');
   console.log('\t--provider=42\t\tBooking form provider');
   console.log('\t--theme=default\t\tBooking form theme');
-  console.log('\t--theme=size\t\tScreen size (xs, sm, md, lg)');
+  console.log('\t--size=lg\t\tScreen size (xs, sm, md, lg)');
   console.log('');
-  console.log('Example: phantom bfscreener.js --out=imgs --env=prod');
+  console.log('Example: phantom bfscreener.js --out=imgs --env=prod --tag=xs --tag=transfers');
   console.log('');
   phantom.exit();
 }
@@ -52,16 +53,14 @@ var Utils = {
     }
   },
 
-  _renderPageIndex: 1,
-
-  renderPage: function(page, outDir, name) {
+  renderPage: function(page, outDir, scenario) {
     for (var i = 0;; i++) {
-      var path = outDir + '/' + this._renderPageIndex + '. ' 
-        + name + (i > 0 ? ' [' + i + ']' : '') + '.png';
+      var path = outDir + '/' + scenario.index + '. ' 
+        + scenario.name  +  ' (' + scenario.tags.join(', ') + ')'
+        + (i > 0 ? ' [' + i + ']' : '') + '.png';
 
       if (!fs.exists(path)) {
         page.render(path);
-        this._renderPageIndex++;
         return;
       }
     }
@@ -86,7 +85,17 @@ var Utils = {
     timeout = setTimeout(function() {
       clearInterval(wait);
       timeoutCb('waitForElement("' + selector + '") timeout');
-    }, 5000);
+    }, 10000);
+  },
+
+  clickElement: function(page, selector, successCb) {
+    page.evaluate(function(selector) {
+      document.querySelector(selector).click();
+    }, selector);
+
+    setTimeout(function() {
+      successCb();
+    }, 200);
   }
 }; 
 
@@ -108,15 +117,15 @@ var Config = function() {
 
   var viewport = {
     xs: {
-      width: 300,
-      height: 1080
+      width: 320,
+      height: 480
     },
     sm: {
-      width: 1920,
+      width: 500,
       height: 1080
     },
     md: {
-      width: 1920,
+      width: 760,
       height: 1080
     },
     lg: {
@@ -132,43 +141,62 @@ var Config = function() {
       case 'qa2': baseUrl = 'https://qatl2.ru/booking2/hotel'; break;
       case 'prod': baseUrl = 'https://travelline.ru/booking2/hotel'; break;
     }
-    return baseUrl + '/' + params.provider + '/' + params.theme + '/?' + params.provider
+
+    var query = [];
+    var queryParams = ['accommodationMode', ''];
+    queryParams.forEach(function(param) {
+      if (params.hasOwnProperty(param)) {
+        query.push(param + '=' + params[param]);
+      }
+    });
+
+    return baseUrl + '/' + params.provider + '/' + params.theme + '/?' + params.provider 
+      + '&' + query.join('&');
   };
 
-  var mergeParams = function(params1, params2) {
+  var mergeParams = function() {
     var result = {};
-    for (var name in params1) {
-      result[name] = params2.hasOwnProperty(name) ? params2[name] : params1[name];
+    for (var i=0; i<arguments.length; i++) {
+      var params = arguments[i];
+      for (var name in params) {
+        result[name] = params[name];
+      }
     }
     return result;
   };
 
   this.combine = function(scenarioParams) {
     var params = mergeParams(globalParams, scenarioParams);
+    
     params['url'] = getUrl(params);
-    params['viewport'] = viewport[params.size];
+    
+    if (!params.hasOwnProperty('viewport')) {
+      params['viewport'] = viewport[params.size];
+    }
 
     return params;
   }
 };
 
-var ScenarioRunner = function(config) {
+var ScenarioRunner = function(config, allowedTags) {
   
   var context = this;
   var scenarios = [];
   var total = 0;
 
   var runNextScenario = function() {
-    var scenario = scenarios.shift();
-    var remains = total - scenarios.length;
-    console.log('[' + remains + '/' + total + '] ' + scenario.name + ' (' + scenario.tags.join(', ') + ')');
-    scenario.run();
+    if (scenarios.length > 0) {
+      var scenario = scenarios.shift();
+      console.log('[' + scenario.index + '/' + total + '] ' + scenario.name 
+        + ' (' + scenario.tags.join(', ') + ')');
+      scenario.run();
+    } else {
+      console.log('DONE');
+      phantom.exit();
+    }
   };
 
   var done = function() {
-    if (scenarios.length == 0) {
-      phantom.exit();
-    }
     runNextScenario();
   };
 
@@ -182,57 +210,140 @@ var ScenarioRunner = function(config) {
   };
 
   this.register = function(name, tags, scenarioParams, scenarioCb) {
+    if (allowedTags.length && !tags.some(function(tag) {
+        return allowedTags.indexOf(tag) >= 0;
+      })) {
+      return;
+    }
+
     total++;
-    scenarios.push({
+    var scenario = {
       name: name,
+      index: total,
       tags: tags,
       run: function() {
         var params = config.combine(scenarioParams);
         var page = webpage.create();
-        
+
         page.viewportSize = params.viewport;
         page.open(params.url, function (status) {
           if (status !== 'success') {
             failed('cant open ' + params.url + ' (' + status + ')');
           } else {
-            scenarioCb(page, name, done, failed);
+            scenarioCb(page, scenario, done, failed);
           }
         });
       }
-    });
+    };
+    scenarios.push(scenario);
   };
 };
 
+var ScenarioCallChain = function() {
+  var context = this;
+  var chain = [];
+
+  var init = function(page, scenario, successCb, failedCb) {
+    context.page = page;
+    context.scenario = scenario;
+    context.successCb = successCb;
+    context.failedCb = failedCb;
+    resolveChain();
+  }
+
+  var resolveChain = function() {
+    var func = chain.shift();
+    func && func();
+  };
+
+  this.done = function() {
+    chain.push(function() {
+      context.successCb();
+    });
+    return init;
+  };
+
+  this.wait = function(selector) {
+    chain.push(function() {
+      Utils.waitForElement(context.page, selector, function() {
+        resolveChain();
+      }, context.failedCb)
+    });
+    return context;
+  };
+
+  this.click = function(selector) {
+    chain.push(function() {
+      Utils.clickElement(context.page, selector, function() {
+        resolveChain();
+      })
+    });
+    return context;
+  };
+
+  this.render = function(outDir) {
+    chain.push(function() {
+      Utils.renderPage(context.page, outDir, context.scenario);
+      resolveChain();
+    });
+    return context;
+  };
+}
+
 var Selectors = {
   searchFilter: '.p-search-filter__form',
-  rooms: '.room__list'
+  searchButton: '.p-search-filter__button',
+  roomsList: '.room__list',
 };
 
-var config = new Config();
-var runner = new ScenarioRunner(config);
+// STARTUP
 
+var allowedTags = Utils.getInputVar('tag', [], true);
 var outDir = Utils.getInputVar('out', 'screens');
+
+var config = new Config();
+var runner = new ScenarioRunner(config, allowedTags);
+
 Utils.cleanDir(outDir);
+
+var waitAndRender = function(selector) {
+  return function(page, scenario, successCb, failedCb) {
+    Utils.waitForElement(page, selector, function() {
+      Utils.renderPage(page, outDir, scenario);
+      successCb();
+    }, failedCb);
+  }
+};
 
 // SCENARIOS
 
-runner.register('Large screen size', ['lg'], {
-    size: 'lg'
-  }, function(page, name, successCb, failedCb) {
+runner.register('Minimum screen width (200px)', ['xs'], {
+  viewport: {
+    width: 200,
+    height: 400
+  }
+}, new ScenarioCallChain()
+    .wait(Selectors.searchFilter)
+    .render(outDir)
+    .done()
+);
+
+runner.register('Azimut', ['lg', 'azimut'], {
+  provider: '86207',
+  theme: 'azimut',
+  accommodationMode: 'auto'
+}, function(page, scenario, successCb, failedCb) {
   Utils.waitForElement(page, Selectors.searchFilter, function() {
-    Utils.renderPage(page, outDir, name);
-    successCb();
+    Utils.renderPage(page, outDir, scenario);
+    Utils.clickElement(page, Selectors.searchButton, function() {
+      Utils.waitForElement(page, Selectors.roomsList, function() {
+        Utils.renderPage(page, outDir, scenario);
+        successCb();
+      }, failedCb);
+    });
   }, failedCb);
 });
 
-runner.register('Phone screen size', ['xs'], {
-    size: 'xs'
-  }, function(page, name, successCb, failedCb) {
-  Utils.waitForElement(page, Selectors.searchFilter, function() {
-    Utils.renderPage(page, outDir, name);
-    successCb();
-  }, failedCb);
-});
 
 // END SCENARIOS
 
