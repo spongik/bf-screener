@@ -7,6 +7,8 @@ if (system.args[1] == '/?') {
   console.log('\t--out=screens\t\tOutput directory');
   console.log('\t--env=qa\t\tBooking form environment (qa, qa2, prod)');
   console.log('\t--tag\t\tOnly run scenarions with given tag. Multiple tags are allowed');
+  console.log('\t--lng=ru\t\tBooking form language');
+  console.log('\t--cur\t\tBooking form currency');
   console.log('\t--provider=42\t\tBooking form provider');
   console.log('\t--theme=default\t\tBooking form theme');
   console.log('\t--size=lg\t\tScreen size (xs, sm, md, lg)');
@@ -55,9 +57,8 @@ var Utils = {
 
   renderPage: function(page, outDir, scenario) {
     for (var i = 0;; i++) {
-      var path = outDir + '/' + scenario.index + '. ' 
-        + scenario.name  +  ' (' + scenario.tags.join(', ') + ')'
-        + (i > 0 ? ' [' + i + ']' : '') + '.png';
+      var path = outDir + '/' + scenario.index + '.' + i + '. ' 
+        + scenario.name  +  ' (' + scenario.tags.join(', ') + ')' + '.png';
 
       if (!fs.exists(path)) {
         page.render(path);
@@ -108,6 +109,8 @@ var Config = function() {
 
   var defaults = {
     env: 'qa',
+    language: 'ru',
+    currency: '',
     provider: '42',
     theme: 'default',
     size: 'lg'
@@ -115,6 +118,8 @@ var Config = function() {
 
   var globalParams = {
     env: Utils.getInputVar('env', defaults.env),
+    language: Utils.getInputVar('lng', defaults.language),
+    currency: Utils.getInputVar('cur', defaults.currency),
     provider: Utils.getInputVar('provider', defaults.provider),
     theme: Utils.getInputVar('theme', defaults.theme),
     size: Utils.getInputVar('size', defaults.size)
@@ -148,7 +153,7 @@ var Config = function() {
     }
 
     var query = [];
-    var queryParams = ['accommodationMode', 'date'];
+    var queryParams = ['language', 'currency', 'accommodationMode', 'date', 'nights'];
     queryParams.forEach(function(param) {
       if (params.hasOwnProperty(param)) {
         query.push(param + '=' + params[param]);
@@ -309,6 +314,7 @@ var Selectors = {
   roomQuantitySelectOption: '.x-rate-plan-list .ui-select-container .ui-select-choices-row:nth-child(2)',
 
   roomInfoPage: '.room-info',
+  roomInfoRateDetails: '.rate-plan__open-details',
 
   previewPage: '.p-preview',
 
@@ -336,7 +342,7 @@ var nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDat
 
 // register scenarios
 
-runner.register('Common screen size (1980px) with manual accommodation', ['lg', 'manual', 'search', 'rooms', 'preview'], {
+runner.register('Common screen width (1980px) with manual accommodation', ['lg', 'manual', 'search', 'rooms', 'preview'], {
   accommodationMode: 'manual'
 }, new ScenarioCallChain()
     .wait(Selectors.searchFilterPage)
@@ -368,6 +374,8 @@ runner.register('Minimum screen width (200px) with auto accommodation', ['xs', '
     .click(Selectors.roomInfoButton)
     .wait(Selectors.roomInfoPage)
     .render(outDir)
+    .click(Selectors.roomInfoRateDetails)
+    .render(outDir)
     .click(Selectors.roomBookButton)
     .wait(Selectors.previewPage)
     .render(outDir)
@@ -391,15 +399,17 @@ runner.register('Azimut', ['lg', 'manual', 'search', 'rooms', 'payment', 'azimut
     .done()
 );
 
-runner.register('Calendar with common screen size (1980px)', ['lg', 'calendar'], {
+runner.register('Calendar with common screen width (1980px)', ['lg', 'calendar'], {
+  nights: 10,
 }, new ScenarioCallChain()
     .click(Selectors.searchCalendar)
     .render(outDir)
     .done()
 );
 
-runner.register('Calendar with phone screen size (320px)', ['xs', 'calendar'], {
-  size: 'xs'
+runner.register('Calendar with phone screen width (320px)', ['xs', 'calendar'], {
+  size: 'xs',
+  nights: 10
 }, new ScenarioCallChain()
     .click(Selectors.searchCalendar)
     .render(outDir)
