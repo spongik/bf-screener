@@ -308,18 +308,21 @@ Utils.cleanDir(outDir);
 
 // SCENARIOS
 
-runner.register('Minimum screen width (200px)', ['xs'], {
+runner.register('Minimum screen width (200px)', ['xs', 'search', 'rooms'], {
   viewport: {
     width: 200,
-    height: 400
+    height: 800
   }
 }, new ScenarioCallChain()
     .wait(Selectors.searchFilter)
     .render(outDir)
+    .click(Selectors.searchButton)
+    .wait(Selectors.roomsList)
+    .render(outDir)
     .done()
 );
 
-runner.register('Azimut', ['lg', 'azimut'], {
+runner.register('Azimut', ['lg', 'search', 'rooms', 'azimut'], {
   provider: '86207',
   theme: 'azimut',
   accommodationMode: 'auto'
