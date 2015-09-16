@@ -288,7 +288,7 @@ var ScenarioCallChain = function() {
     });
     return context;
   };
-}
+};
 
 var Selectors = {
   searchFilter: '.p-search-filter__form',
@@ -305,15 +305,6 @@ var config = new Config();
 var runner = new ScenarioRunner(config, allowedTags);
 
 Utils.cleanDir(outDir);
-
-var waitAndRender = function(selector) {
-  return function(page, scenario, successCb, failedCb) {
-    Utils.waitForElement(page, selector, function() {
-      Utils.renderPage(page, outDir, scenario);
-      successCb();
-    }, failedCb);
-  }
-};
 
 // SCENARIOS
 
@@ -332,18 +323,14 @@ runner.register('Azimut', ['lg', 'azimut'], {
   provider: '86207',
   theme: 'azimut',
   accommodationMode: 'auto'
-}, function(page, scenario, successCb, failedCb) {
-  Utils.waitForElement(page, Selectors.searchFilter, function() {
-    Utils.renderPage(page, outDir, scenario);
-    Utils.clickElement(page, Selectors.searchButton, function() {
-      Utils.waitForElement(page, Selectors.roomsList, function() {
-        Utils.renderPage(page, outDir, scenario);
-        successCb();
-      }, failedCb);
-    });
-  }, failedCb);
-});
-
+}, new ScenarioCallChain()
+    .wait(Selectors.searchFilter)
+    .render(outDir)
+    .click(Selectors.searchButton)
+    .wait(Selectors.roomsList)
+    .render(outDir)
+    .done()
+);
 
 // END SCENARIOS
 
