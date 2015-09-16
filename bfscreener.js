@@ -85,7 +85,7 @@ var Utils = {
     timeout = setTimeout(function() {
       clearInterval(wait);
       timeoutCb('waitForElement("' + selector + '") timeout');
-    }, 10000);
+    }, 5000);
   },
 
   clickElement: function(page, selector, successCb) {
@@ -95,8 +95,13 @@ var Utils = {
 
     setTimeout(function() {
       successCb();
-    }, 200);
+    }, 300);
+  },
+
+  formatDate: function(date) {
+    return date.toISOString().slice(0, 10);
   }
+
 }; 
 
 var Config = function() {
@@ -143,7 +148,7 @@ var Config = function() {
     }
 
     var query = [];
-    var queryParams = ['accommodationMode', ''];
+    var queryParams = ['accommodationMode', 'date'];
     queryParams.forEach(function(param) {
       if (params.hasOwnProperty(param)) {
         query.push(param + '=' + params[param]);
@@ -267,16 +272,18 @@ var ScenarioCallChain = function() {
     chain.push(function() {
       Utils.waitForElement(context.page, selector, function() {
         resolveChain();
-      }, context.failedCb)
+      }, context.failedCb);
     });
     return context;
   };
 
   this.click = function(selector) {
     chain.push(function() {
-      Utils.clickElement(context.page, selector, function() {
-        resolveChain();
-      })
+      Utils.waitForElement(context.page, selector, function() {
+        Utils.clickElement(context.page, selector, function() {
+          resolveChain();
+        });
+      }, context.failedCb);
     });
     return context;
   };
@@ -291,9 +298,23 @@ var ScenarioCallChain = function() {
 };
 
 var Selectors = {
-  searchFilter: '.p-search-filter__form',
+  searchFilterPage: '.p-search-filter__form',
+  searchCalendar: '.x-datepicker__input',
   searchButton: '.p-search-filter__button',
-  roomsList: '.room__list',
+  
+  roomsListPage: '.room__list',
+  roomInfoButton: '.room__list .x-room-group',
+  roomBookButton: '.x-rate-plan-list .rate-plan__book-btn',
+  roomQuantitySelect: '.x-rate-plan-list .ui-select-container .selectize-input',
+  roomQuantitySelectOption: '.x-rate-plan-list .ui-select-container .ui-select-choices-row:nth-child(2)',
+
+  roomInfoPage: '.room-info',
+
+  previewPage: '.p-preview',
+
+  paymentPage: '.x-order',
+  
+  cartProccedBooking: '.x-cart__summary-btn'
 };
 
 // STARTUP
@@ -308,29 +329,79 @@ Utils.cleanDir(outDir);
 
 // SCENARIOS
 
-runner.register('Minimum screen width (200px)', ['xs', 'search', 'rooms'], {
-  viewport: {
-    width: 200,
-    height: 800
-  }
+// common vars
+
+var today = new Date();
+var nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+
+// register scenarios
+
+runner.register('Common screen size (1980px) with manual accommodation', ['lg', 'manual', 'search', 'rooms', 'preview'], {
+  accommodationMode: 'manual'
 }, new ScenarioCallChain()
-    .wait(Selectors.searchFilter)
+    .wait(Selectors.searchFilterPage)
     .render(outDir)
     .click(Selectors.searchButton)
-    .wait(Selectors.roomsList)
+    .wait(Selectors.roomsListPage)
+    .render(outDir)
+    .click(Selectors.roomQuantitySelect)
+    .click(Selectors.roomQuantitySelectOption)
+    .render(outDir)
+    .click(Selectors.cartProccedBooking)
+    .wait(Selectors.previewPage)
     .render(outDir)
     .done()
 );
 
-runner.register('Azimut', ['lg', 'search', 'rooms', 'azimut'], {
-  provider: '86207',
-  theme: 'azimut',
+runner.register('Minimum screen width (200px) with auto accommodation', ['xs', 'auto', 'search', 'rooms', 'preview'], {
+  viewport: {
+    width: 200,
+    height: 800
+  },
   accommodationMode: 'auto'
 }, new ScenarioCallChain()
-    .wait(Selectors.searchFilter)
+    .wait(Selectors.searchFilterPage)
     .render(outDir)
     .click(Selectors.searchButton)
-    .wait(Selectors.roomsList)
+    .wait(Selectors.roomsListPage)
+    .render(outDir)
+    .click(Selectors.roomInfoButton)
+    .wait(Selectors.roomInfoPage)
+    .render(outDir)
+    .click(Selectors.roomBookButton)
+    .wait(Selectors.previewPage)
+    .render(outDir)
+    .done()
+);
+
+runner.register('Azimut', ['lg', 'manual', 'search', 'rooms', 'payment', 'azimut'], {
+  provider: '86207',
+  theme: 'azimut',
+  date: Utils.formatDate(nextMonth),
+  accommodationMode: 'auto'
+}, new ScenarioCallChain()
+    .wait(Selectors.searchFilterPage)
+    .render(outDir)
+    .click(Selectors.searchButton)
+    .wait(Selectors.roomsListPage)
+    .render(outDir)
+    .click(Selectors.roomBookButton)
+    .wait(Selectors.paymentPage)
+    .render(outDir)
+    .done()
+);
+
+runner.register('Calendar with common screen size (1980px)', ['lg', 'calendar'], {
+}, new ScenarioCallChain()
+    .click(Selectors.searchCalendar)
+    .render(outDir)
+    .done()
+);
+
+runner.register('Calendar with phone screen size (320px)', ['xs', 'calendar'], {
+  size: 'xs'
+}, new ScenarioCallChain()
+    .click(Selectors.searchCalendar)
     .render(outDir)
     .done()
 );
