@@ -413,6 +413,9 @@ var Selectors = {
   paymentOrderExpand: '.x-order__summary',
   paymentCancellationExpand: '.x-order__cancellation-btn',
   paymentTerms: '.x-payment-list__agreement a, .payment__user-agreement a',
+  paymentInstruction: '.x-payment-list__info-payment-instruction a',
+  paymentOfficeButton: '.x-payment-list__info-description-icon-wrap',
+  paymentOffice: '.x-popover',
 
   paymentFormPhone: '[name=contactPhoneNumber]',
   paymentFormEmail: '[name=email]',
@@ -793,6 +796,34 @@ runner.register('Terms with phone screen width (320px)', ['xs', 'terms'], {
     .done()
 );
 
+runner.register('Payment instruction popup', ['instruction'], {
+  accommodationMode: 'auto',
+  nights: 1,
+  adults: 1,
+  date: Utils.formatDate(wednesday)
+}, new ScenarioCallChain()
+    .click(Selectors.roomBookButton)
+    .wait(Selectors.previewPage)
+    .click(Selectors.cartProccedBooking)
+    .click(Selectors.paymentInstruction)
+    .render(outDir, Selectors.modalContent)
+    .done()
+);
+
+runner.register('Office description tooltip', ['office'], {
+  accommodationMode: 'auto',
+  nights: 1,
+  adults: 1,
+  date: Utils.formatDate(wednesday)
+}, new ScenarioCallChain()
+    .click(Selectors.roomBookButton)
+    .wait(Selectors.previewPage)
+    .click(Selectors.cartProccedBooking)
+    .click(Selectors.paymentOfficeButton)
+    .render(outDir, Selectors.paymentOffice)
+    .done()
+);
+
 runner.register('Cancellation with common screen width (1980px)', ['lg', 'cancellation'], {
   state: 'cancellation',
   size: 'lg'
@@ -823,6 +854,26 @@ runner.register('Cancellation with phone screen width (320px)', ['xs', 'cancella
     .wait(Selectors.cancellationDetails)
     .render(outDir)
     .click(Selectors.cancellationAgreeButton)
+    .render(outDir)
+    .done()
+);
+
+runner.register('Static rooms list with common screen width (1980px)', ['lg', 'list'], {
+  state: 'rooms',
+  size: 'lg'
+}, new ScenarioCallChain()
+    .wait(Selectors.roomsListPage)
+    .sleep(500)
+    .render(outDir)
+    .done()
+);
+
+runner.register('Static rooms list with phone screen width (320px)', ['xs', 'list'], {
+  state: 'rooms',
+  size: 'xs'
+}, new ScenarioCallChain()
+    .wait(Selectors.roomsListPage)
+    .sleep(500)
     .render(outDir)
     .done()
 );
