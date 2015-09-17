@@ -7,8 +7,8 @@ if (system.args[1] == '/?') {
   console.log('\t--out=screens\t\tOutput directory');
   console.log('\t--env=qa\t\tBooking form environment (qa, qa2, prod)');
   console.log('\t--tag\t\tOnly run scenarions with given tag. Multiple tags are allowed');
-  console.log('\t--lng=ru\t\tBooking form language');
-  console.log('\t--cur\t\tBooking form currency');
+  console.log('\t--lng=ru\t\tBooking form language (ru, en, fr, uk, kk, cs, zh)');
+  console.log('\t--cur\t\tBooking form currency (RUB, USD, EUR, AMD, AZN, BYR, CNY, GBP, KGS, KZT, TJS, UAH, CHF, TND, GEL)');
   console.log('\t--provider=2796\t\tBooking form provider');
   console.log('\t--theme=default\t\tBooking form theme');
   console.log('\t--size=lg\t\tScreen size (xs, sm, md, lg)');
@@ -111,7 +111,7 @@ var Utils = {
     timeout = setTimeout(function() {
       clearInterval(wait);
       timeoutCb('waitForElement("' + selector + '") timeout');
-    }, 15000);
+    }, 20000);
   },
 
   clickElement: function(page, selector, successCb) {
@@ -148,6 +148,8 @@ var Config = function() {
     provider: '2796',
     theme: 'default',
     size: 'lg',
+    roomTypes: '26030',
+    ratePlans: '17024',
     promoCodePlain: '123',
     cancellationNumber: '20160916-2796-679386',
     cancellationCode: 'SSR5R',
@@ -606,6 +608,46 @@ runner.register('Rooms page with medium screen width (760px)', ['md', 'manual', 
     .done()
 );
 
+runner.register('Rooms page with passed room', ['lg', 'auto', 'rooms'], {
+  roomTypes: config.defaults.roomTypes,
+  accommodationMode: 'auto',
+  date: Utils.formatDate(wednesday)
+}, new ScenarioCallChain()
+    .wait(Selectors.searchFilterPage)
+    .render(outDir)
+    .click(Selectors.searchButton)
+    .wait(Selectors.roomsListPage)
+    .render(outDir)
+    .done()
+);
+
+runner.register('Rooms page with passed rate', ['lg', 'auto', 'rooms'], {
+  ratePlans: config.defaults.ratePlans,
+  accommodationMode: 'auto',
+  date: Utils.formatDate(wednesday)
+}, new ScenarioCallChain()
+    .wait(Selectors.searchFilterPage)
+    .render(outDir)
+    .click(Selectors.searchButton)
+    .wait(Selectors.roomsListPage)
+    .render(outDir)
+    .done()
+);
+
+runner.register('Rooms page with passed room and rate', ['lg', 'auto', 'rooms'], {
+  roomTypes: config.defaults.roomTypes,
+  ratePlans: config.defaults.ratePlans,
+  accommodationMode: 'auto',
+  date: Utils.formatDate(wednesday)
+}, new ScenarioCallChain()
+    .wait(Selectors.searchFilterPage)
+    .render(outDir)
+    .click(Selectors.searchButton)
+    .wait(Selectors.roomsListPage)
+    .render(outDir)
+    .done()
+);
+
 runner.register('Room availability calendar', ['availability'], {
   nights: 1,
   date: Utils.formatDate(monday)
@@ -616,7 +658,7 @@ runner.register('Room availability calendar', ['availability'], {
     .done()
 );
 
-runner.register('Rooms unavailable with availability calendar', ['availability'], {
+runner.register('Unavailable rooms with availability calendar', ['availability'], {
   nights: 1,
   date: Utils.formatDate(tuesday)
 }, new ScenarioCallChain()
@@ -625,7 +667,7 @@ runner.register('Rooms unavailable with availability calendar', ['availability']
     .done()
 );
 
-runner.register('Rooms unavailable without availability calendar', ['availability'], {
+runner.register('Unavailable rooms without availability calendar', ['availability'], {
   nights: 1,
   date: Utils.formatDate(nextMonthTuesday)
 }, new ScenarioCallChain()
