@@ -61,7 +61,7 @@ var Utils = {
   },
 
   renderPage: function(page, outDir, scenario) {
-    for (var i = 0;; i++) {
+    for (var i = 1;; i++) {
       var path = outDir + '/' + scenario.index + '.' + i + '. ' 
         + scenario.name  +  ' (' + scenario.tags.join(', ') + ')' + '.png';
 
@@ -497,7 +497,7 @@ runner.register('Common screen width (1980px) with manual accommodation', ['lg',
     .value(Selectors.paymentFormEmail, 'test@test.test')
     .value(Selectors.paymentFormLastName, 'Lastname')
     .value(Selectors.paymentFormFirstName, 'Firstname')
-    .sleep(2000)
+    .sleep(3000)
     .click(Selectors.paymentBook)
     .wait(Selectors.completePage)
     .render(outDir)
@@ -533,7 +533,7 @@ runner.register('Minimum screen width (200px) with auto accommodation', ['xs', '
     .value(Selectors.paymentFormEmail, 'test@test.test')
     .value(Selectors.paymentFormLastName, 'Lastname')
     .value(Selectors.paymentFormFirstName, 'Firstname')
-    .sleep(2000)
+    .sleep(3000)
     .click(Selectors.paymentBook)
     .wait(Selectors.completePage)
     .render(outDir)
