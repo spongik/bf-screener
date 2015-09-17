@@ -12,11 +12,17 @@ if (system.args[1] == '/?') {
   console.log('\t--provider=2796\t\tBooking form provider');
   console.log('\t--theme=default\t\tBooking form theme');
   console.log('\t--size=lg\t\tScreen size (xs, sm, md, lg)');
+  console.log('\t--promo\t\tApply promo code');
   console.log('');
   console.log('Example: phantom bfscreener.js --out=imgs --env=prod --tag=xs --tag=transfers');
   console.log('');
   phantom.exit();
 }
+
+console.log('Help: phantomjs bfscreener.js /?');
+console.log('');
+
+var BF_QUERY_PARAMS = ['language', 'currency', 'accommodationMode', 'date', 'nights', 'adults', 'children', 'promoCodePlain', 'roomTypes', 'ratePlans', 'state'];
 
 var Utils = {
 
@@ -67,11 +73,31 @@ var Utils = {
     }
   },
 
+  renderElement: function(page, outDir, scenario, selector) {
+    var originalViewport = page.clipRect;
+    var viewport = page.evaluate(function(selector) {
+      return $(selector).get(0).getBoundingClientRect();
+    }, selector);
+
+    if (viewport) {
+      var padding = 50;
+      page.clipRect = {
+        top: Math.max(0, viewport.top - padding),
+        left: Math.max(0, viewport.left - padding),
+        width: viewport.width + padding * 2,
+        height: viewport.height + padding * 2
+      };
+    }
+
+    Utils.renderPage(page, outDir, scenario);
+    page.clipRect = originalViewport;
+  },
+
   waitForElement: function(page, selector, successCb, timeoutCb) {
     var timeout;
     var wait = setInterval(function() {
       var exists = page.evaluate(function(selector) {
-        return document.querySelector(selector) != null;
+        return $(selector).get(0) != null;
       }, selector);
 
       if (exists) {
@@ -86,17 +112,27 @@ var Utils = {
     timeout = setTimeout(function() {
       clearInterval(wait);
       timeoutCb('waitForElement("' + selector + '") timeout');
-    }, 10000);
+    }, 15000);
   },
 
   clickElement: function(page, selector, successCb) {
     page.evaluate(function(selector) {
-      document.querySelector(selector).click();
+      $(selector).get(0).click();
     }, selector);
 
     setTimeout(function() {
       successCb();
     }, 300);
+  },
+
+  setElementValue: function(page, selector, value, successCb) {
+    page.evaluate(function(selector, value) {
+      $(selector).val(value).change();
+    }, selector, value);
+
+    setTimeout(function() {
+      successCb();
+    }, 100);
   },
 
   formatDate: function(date) {
@@ -107,22 +143,25 @@ var Utils = {
 
 var Config = function() {
 
-  var defaults = {
+  this.defaults = {
     env: 'qa',
     language: 'ru',
-    currency: '',
     provider: '2796',
     theme: 'default',
-    size: 'lg'
+    size: 'lg',
+    promoCodePlain: '123',
+    cancellationNumber: '20160916-2796-679386',
+    cancellationCode: 'SSR5R',
   };
 
   var globalParams = {
-    env: Utils.getInputVar('env', defaults.env),
-    language: Utils.getInputVar('lng', defaults.language),
-    currency: Utils.getInputVar('cur', defaults.currency),
-    provider: Utils.getInputVar('provider', defaults.provider),
-    theme: Utils.getInputVar('theme', defaults.theme),
-    size: Utils.getInputVar('size', defaults.size)
+    env: Utils.getInputVar('env', this.defaults.env),
+    language: Utils.getInputVar('lng', this.defaults.language),
+    currency: Utils.getInputVar('cur', null),
+    provider: Utils.getInputVar('provider', this.defaults.provider),
+    theme: Utils.getInputVar('theme', this.defaults.theme),
+    size: Utils.getInputVar('size', this.defaults.size),
+    promoCodePlain: Utils.getInputVar('promo', null)
   };
 
   var viewport = {
@@ -153,9 +192,8 @@ var Config = function() {
     }
 
     var query = [];
-    var queryParams = ['language', 'currency', 'accommodationMode', 'date', 'nights'];
-    queryParams.forEach(function(param) {
-      if (params.hasOwnProperty(param)) {
+    BF_QUERY_PARAMS.forEach(function(param) {
+      if (params.hasOwnProperty(param) && params[param] != null) {
         query.push(param + '=' + params[param]);
       }
     });
@@ -197,7 +235,7 @@ var ScenarioRunner = function(config, allowedTags) {
   var runNextScenario = function() {
     if (scenarios.length > 0) {
       var scenario = scenarios.shift();
-      console.log('[' + scenario.index + '/' + total + '] ' + scenario.name 
+      console.log('[' + scenario.index + '/' + total + ']\t' + scenario.name 
         + ' (' + scenario.tags.join(', ') + ')');
       scenario.run();
     } else {
@@ -235,7 +273,8 @@ var ScenarioRunner = function(config, allowedTags) {
         var params = config.combine(scenarioParams);
         var page = webpage.create();
 
-        console.log(params.url);
+        console.log('\t' + params.url);
+        console.log('');
 
         page.viewportSize = params.viewport;
         page.open(params.url, function (status) {
@@ -284,6 +323,15 @@ var ScenarioCallChain = function() {
     return context;
   };
 
+  this.sleep = function(delay) {
+    chain.push(function() {
+      setTimeout(function() {
+        resolveChain();
+      }, delay);
+    });
+    return context;
+  };
+
   this.click = function(selector) {
     chain.push(function() {
       Utils.waitForElement(context.page, selector, function() {
@@ -295,11 +343,31 @@ var ScenarioCallChain = function() {
     return context;
   };
 
-  this.render = function(outDir) {
+  this.value = function(selector, value) {
     chain.push(function() {
-      Utils.renderPage(context.page, outDir, context.scenario);
-      resolveChain();
+      Utils.waitForElement(context.page, selector, function() {
+        Utils.setElementValue(context.page, selector, value, function() {
+          resolveChain();
+        });
+      }, context.failedCb);
     });
+    return context;
+  };
+
+  this.render = function(outDir, selector) {
+    if (selector) {
+      chain.push(function() {
+        Utils.waitForElement(context.page, selector, function() {
+          Utils.renderElement(context.page, outDir, context.scenario, selector);
+          resolveChain();
+        }, context.failedCb);
+      });
+    } else {
+      chain.push(function() {
+        Utils.renderPage(context.page, outDir, context.scenario);
+        resolveChain();
+      });
+    }
     return context;
   };
 };
@@ -313,24 +381,57 @@ var Selectors = {
   roomRateExpand: '.rate-plan__title .x-title',
   roomRatesExpand: '.rate-plan__expand',
   roomDescriptionExpand: '.room__name .x-title',
+  roomPriceDetailsButton: '.rate-plan__popover-btn',
+  roomPriceDetails: '.x-popover',
   roomInfoButton: '.room__list .x-room-group',
   roomBookButton: '.x-rate-plan-list .rate-plan__book-btn',
-  roomQuantitySelect: '.x-rate-plan-list .ui-select-container .selectize-input',
-  roomQuantitySelectOption: '.x-rate-plan-list .ui-select-container .ui-select-choices-row:nth-child(2)',
+  roomQuantitySelect: '.rate-plan__quantity-select .selectize-input',
+  roomQuantitySelectOption: '.rate-plan__quantity-select .ui-select-choices-row:nth-child(2)',
+
+  roomConstructor: '.rate-plan__price-details:has(.rate-plan__form)',
+  roomConstructorSelect: '.rate-plan__price-details:has(.rate-plan__multiple-placeholder) .selectize-input',
+  roomConstructorSelectOption1: '.rate-plan__price-details:has(.rate-plan__multiple-placeholder) .ui-select-choices-row:nth-child(2)',
+  roomConstructorSelectOption2: '.rate-plan__price-details:has(.rate-plan__multiple-placeholder) .ui-select-choices-row:nth-child(3)',
+  roomConstructorExtra: '.rate-plan__extra .x-title',
+
+  roomUnavailable: '.room__list-item:has(.room__availability-calendar)',
+  roomAvailabilityExpand: '.x-availability-calendar-expandable__button .x-title',
+  roomAvailability: '.x-availability-calendar__slider-availability._state_valid',
+
+  noRoomsPage: '.no-rooms-view__message',
 
   roomInfoPage: '.room-info',
   roomInfoRateDetails: '.rate-plan__open-details',
 
   previewPage: '.p-preview',
+  previewTransfer: '.x-transfer__container',
   previewTransferExpand: '.x-transfer .x-title',
 
   paymentPage: '.x-payment-list',
+  paymentBook: '.x-payment-list__book-btn',
+  paymentOrder: '.x-order',
   paymentOrderExpand: '.x-order__summary',
   paymentCancellationExpand: '.x-order__cancellation-btn',
+  paymentTerms: '.x-payment-list__agreement a, .payment__user-agreement a',
+
+  paymentFormPhone: '[name=contactPhoneNumber]',
+  paymentFormEmail: '[name=email]',
+  paymentFormLastName: '[name^=lastname]',
+  paymentFormFirstName: '[name^=firstname]',
+
+  completePage: '.complete__voucher-content',
   
   cartProccedBooking: '.x-cart__summary-btn',
   
-  modalClose: '.x-modal__close-btn'
+  modalContent: '.x-modal .modal-content',
+  modalClose: '.x-modal__close-btn',
+
+  cancellationPage: '.p-auth',
+  cancellationFormNumber: '[name=bookingNumber]',
+  cancellationFormCode: '[name=confirmationCode]',
+  cancellationDetailsButton: '.p-auth__submit',
+  cancellationDetails: '.p-cancellation',
+  cancellationAgreeButton: '.p-cancellation__agree'
 };
 
 // STARTUP
@@ -348,15 +449,17 @@ Utils.cleanDir(outDir);
 // common vars
 
 var today = new Date();
-var monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 5) % 7) + 14);
-var tuesday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 4) % 7) + 14);
-var wednesday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 3) % 7) + 14);
+var monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 5) % 7) + 14); // 2796 qa with unavailable rooms
+var tuesday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 4) % 7) + 14); // 2796 qa no rooms
+var wednesday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 3) % 7) + 14); // 2796 qa all rooms
 var nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+var nextMonthTuesday =  new Date(nextMonth.getFullYear(), nextMonth.getMonth(), nextMonth.getDate() - ((nextMonth.getDay() + 4) % 7) + 14);
 
 // register scenarios
 
-runner.register('Common screen width (1980px) with manual accommodation', ['lg', 'manual', 'search', 'rooms', 'preview'], {
+runner.register('Common screen width (1980px) with manual accommodation', ['lg', 'manual', 'search', 'rooms', 'preview', 'complete'], {
   accommodationMode: 'manual',
+  size: 'lg',
   date: Utils.formatDate(wednesday)
 }, new ScenarioCallChain()
     .wait(Selectors.searchFilterPage)
@@ -376,17 +479,22 @@ runner.register('Common screen width (1980px) with manual accommodation', ['lg',
     .render(outDir)
     .click(Selectors.cartProccedBooking)
     .wait(Selectors.previewPage)
-    .click(Selectors.previewTransferExpand)
     .render(outDir)
     .click(Selectors.cartProccedBooking)
-    .click(Selectors.paymentOrderExpand)
-    .click(Selectors.paymentCancellationExpand)
     .wait(Selectors.paymentPage)
+    .render(outDir)
+    .value(Selectors.paymentFormPhone, '1111111111')
+    .value(Selectors.paymentFormEmail, 'test@test.test')
+    .value(Selectors.paymentFormLastName, 'Lastname')
+    .value(Selectors.paymentFormFirstName, 'Firstname')
+    .sleep(2000)
+    .click(Selectors.paymentBook)
+    .wait(Selectors.completePage)
     .render(outDir)
     .done()
 );
 
-runner.register('Minimum screen width (200px) with auto accommodation', ['xs', 'auto', 'search', 'rooms', 'preview'], {
+runner.register('Minimum screen width (200px) with auto accommodation', ['xs', 'auto', 'search', 'rooms', 'preview', 'complete'], {
   viewport: {
     width: 200,
     height: 800
@@ -407,19 +515,25 @@ runner.register('Minimum screen width (200px) with auto accommodation', ['xs', '
     .click(Selectors.modalClose)
     .click(Selectors.roomBookButton)
     .wait(Selectors.previewPage)
-    .click(Selectors.previewTransferExpand)
     .render(outDir)
     .click(Selectors.cartProccedBooking)
-    .click(Selectors.paymentOrderExpand)
-    .click(Selectors.paymentCancellationExpand)
     .wait(Selectors.paymentPage)
+    .render(outDir)
+    .value(Selectors.paymentFormPhone, '1111111111')
+    .value(Selectors.paymentFormEmail, 'test@test.test')
+    .value(Selectors.paymentFormLastName, 'Lastname')
+    .value(Selectors.paymentFormFirstName, 'Firstname')
+    .sleep(2000)
+    .click(Selectors.paymentBook)
+    .wait(Selectors.completePage)
     .render(outDir)
     .done()
 );
 
-runner.register('Azimut', ['lg', 'manual', 'search', 'rooms', 'payment', 'azimut'], {
+runner.register('Azimut with common screen width (1980px)', ['lg', 'auto', 'search', 'rooms', 'payment', 'azimut'], {
   provider: '86207',
   theme: 'azimut',
+  size: 'lg',
   date: Utils.formatDate(nextMonth),
   accommodationMode: 'auto'
 }, new ScenarioCallChain()
@@ -436,7 +550,202 @@ runner.register('Azimut', ['lg', 'manual', 'search', 'rooms', 'payment', 'azimut
     .done()
 );
 
+runner.register('Azimut with phone screen width (320px)', ['xs', 'auto', 'search', 'rooms', 'payment', 'azimut'], {
+  provider: '86207',
+  theme: 'azimut',
+  size: 'xs',
+  date: Utils.formatDate(nextMonth),
+  accommodationMode: 'auto'
+}, new ScenarioCallChain()
+    .wait(Selectors.searchFilterPage)
+    .render(outDir)
+    .click(Selectors.searchButton)
+    .wait(Selectors.roomsListPage)
+    .render(outDir)
+    .click(Selectors.roomInfoButton)
+    .wait(Selectors.roomInfoPage)
+    .render(outDir)
+    .click(Selectors.roomBookButton)
+    .click(Selectors.paymentOrderExpand)
+    .click(Selectors.paymentCancellationExpand)
+    .wait(Selectors.paymentPage)
+    .render(outDir)
+    .done()
+);
+
+runner.register('Rooms page with small screen width (500px)', ['sm', 'manual', 'rooms'], {
+  size: 'sm',
+  nights: 2,
+  date: Utils.formatDate(wednesday)
+}, new ScenarioCallChain()
+    .click(Selectors.roomRateExpand)
+    .click(Selectors.roomRatesExpand)
+    .click(Selectors.roomDescriptionExpand)
+    .render(outDir)
+    .done()
+);
+
+runner.register('Rooms page with medium screen width (760px)', ['md', 'manual', 'rooms'], {
+  size: 'md',
+  nights: 2,
+  date: Utils.formatDate(wednesday)
+}, new ScenarioCallChain()
+    .click(Selectors.roomRateExpand)
+    .click(Selectors.roomRatesExpand)
+    .click(Selectors.roomDescriptionExpand)
+    .render(outDir)
+    .done()
+);
+
+runner.register('Room availability calendar', ['availability'], {
+  nights: 1,
+  date: Utils.formatDate(monday)
+}, new ScenarioCallChain()
+    .click(Selectors.roomAvailabilityExpand)
+    .wait(Selectors.roomAvailability)
+    .render(outDir, Selectors.roomUnavailable)
+    .done()
+);
+
+runner.register('Rooms unavailable with availability calendar', ['availability'], {
+  nights: 1,
+  date: Utils.formatDate(tuesday)
+}, new ScenarioCallChain()
+    .wait(Selectors.noRoomsPage)
+    .render(outDir)
+    .done()
+);
+
+runner.register('Rooms unavailable without availability calendar', ['availability'], {
+  nights: 1,
+  date: Utils.formatDate(nextMonthTuesday)
+}, new ScenarioCallChain()
+    .wait(Selectors.noRoomsPage)
+    .render(outDir)
+    .done()
+);
+
+runner.register('Rate plan price details popover', ['details'], {
+  nights: 4,
+  adults: 2,
+  children: 2,
+  date: Utils.formatDate(wednesday),
+  accommodationMode: 'auto'
+}, new ScenarioCallChain()
+    .click(Selectors.roomPriceDetailsButton)
+    .render(outDir, Selectors.roomPriceDetails)
+    .done()
+);
+
+runner.register('Order with common screen width (1980px)', ['lg', 'order'], {
+  accommodationMode: 'auto',
+  size: 'lg',
+  nights: 3,
+  adults: 2,
+  children: 2,
+  date: Utils.formatDate(wednesday)
+}, new ScenarioCallChain()
+    .click(Selectors.roomBookButton)
+    .wait(Selectors.previewPage)
+    .click(Selectors.cartProccedBooking)
+    .click(Selectors.paymentOrderExpand)
+    .click(Selectors.paymentCancellationExpand)
+    .render(outDir, Selectors.paymentOrder)
+    .done()
+);
+
+runner.register('Order with phone screen width (320px)', ['xs', 'order'], {
+  accommodationMode: 'auto',
+  size: 'xs',
+  nights: 3,
+  adults: 2,
+  children: 2,
+  date: Utils.formatDate(wednesday)
+}, new ScenarioCallChain()
+    .click(Selectors.roomInfoButton)
+    .click(Selectors.roomBookButton)
+    .wait(Selectors.previewPage)
+    .click(Selectors.cartProccedBooking)
+    .click(Selectors.paymentOrderExpand)
+    .click(Selectors.paymentCancellationExpand)
+    .render(outDir, Selectors.paymentOrder)
+    .done()
+);
+
+runner.register('Promo rate plan', ['auto', 'rooms', 'promo'], {
+  nights: 1,
+  adults: 1,
+  date: Utils.formatDate(wednesday),
+  promoCodePlain: config.defaults.promoCodePlain,
+  accommodationMode: 'auto'
+}, new ScenarioCallChain()
+    .wait(Selectors.roomsListPage)
+    .render(outDir)
+    .done()
+);
+
+runner.register('Transfers with common screen width (1980px)', ['lg', 'transfers'], {
+  size: 'lg',
+  date: Utils.formatDate(wednesday),
+  nights: 1,
+  adults: 2,
+  accommodationMode: 'auto'
+}, new ScenarioCallChain()
+    .click(Selectors.roomBookButton)
+    .click(Selectors.previewTransferExpand)
+    .render(outDir, Selectors.previewTransfer)
+    .done()
+);
+
+runner.register('Transfers with phone screen width (320px)', ['xs', 'transfers'], {
+  size: 'xs',
+  date: Utils.formatDate(wednesday),
+  nights: 1,
+  adults: 2,
+  accommodationMode: 'auto'
+}, new ScenarioCallChain()
+    .click(Selectors.roomInfoButton)
+    .click(Selectors.roomBookButton)
+    .click(Selectors.previewTransferExpand)
+    .render(outDir, Selectors.previewTransfer)
+    .done()
+);
+
+runner.register('Stay constructor with common screen width (1980px)', ['lg', 'constructor'], {
+  size: 'lg',
+  date: Utils.formatDate(wednesday),
+  nights: 1,
+  accommodationMode: 'manual'
+}, new ScenarioCallChain()
+    .click(Selectors.roomConstructorSelect)
+    .click(Selectors.roomConstructorSelectOption1)
+    .render(outDir, Selectors.roomConstructor)
+    .click(Selectors.roomConstructorExtra)
+    .click(Selectors.roomConstructorSelect)
+    .click(Selectors.roomConstructorSelectOption2)
+    .render(outDir, Selectors.roomConstructor)
+    .done()
+);
+
+runner.register('Stay constructor with phone screen width (320px)', ['xs', 'constructor'], {
+  size: 'xs',
+  date: Utils.formatDate(wednesday),
+  nights: 1,
+  accommodationMode: 'manual'
+}, new ScenarioCallChain()
+    .click(Selectors.roomInfoButton)
+    .click(Selectors.roomConstructorSelect)
+    .click(Selectors.roomConstructorSelectOption1)
+    .render(outDir)
+    .click(Selectors.roomConstructorExtra)
+    .click(Selectors.roomConstructorSelect)
+    .click(Selectors.roomConstructorSelectOption2)
+    .render(outDir)
+    .done()
+);
+
 runner.register('Calendar with common screen width (1980px)', ['lg', 'calendar'], {
+  size: 'lg',
   date: Utils.formatDate(wednesday)
 }, new ScenarioCallChain()
     .click(Selectors.searchCalendar)
@@ -449,6 +758,71 @@ runner.register('Calendar with phone screen width (320px)', ['xs', 'calendar'], 
   date: Utils.formatDate(wednesday)
 }, new ScenarioCallChain()
     .click(Selectors.searchCalendar)
+    .render(outDir)
+    .done()
+);
+
+runner.register('Terms with common screen width (1980px)', ['lg', 'terms'], {
+  accommodationMode: 'auto',
+  size: 'lg',
+  nights: 1,
+  adults: 1,
+  date: Utils.formatDate(wednesday)
+}, new ScenarioCallChain()
+    .click(Selectors.roomBookButton)
+    .wait(Selectors.previewPage)
+    .click(Selectors.cartProccedBooking)
+    .click(Selectors.paymentTerms)
+    .render(outDir, Selectors.modalContent)
+    .done()
+);
+
+runner.register('Terms with phone screen width (320px)', ['xs', 'terms'], {
+  accommodationMode: 'auto',
+  size: 'xs',
+  nights: 1,
+  adults: 1,
+  date: Utils.formatDate(wednesday)
+}, new ScenarioCallChain()
+    .click(Selectors.roomInfoButton)
+    .click(Selectors.roomBookButton)
+    .wait(Selectors.previewPage)
+    .click(Selectors.cartProccedBooking)
+    .click(Selectors.paymentTerms)
+    .render(outDir, Selectors.modalContent)
+    .done()
+);
+
+runner.register('Cancellation with common screen width (1980px)', ['lg', 'cancellation'], {
+  state: 'cancellation',
+  size: 'lg'
+}, new ScenarioCallChain()
+    .wait(Selectors.cancellationPage)
+    .value(Selectors.cancellationFormNumber, config.defaults.cancellationNumber)
+    .value(Selectors.cancellationFormCode, config.defaults.cancellationCode)
+    .sleep(1000)
+    .render(outDir)
+    .click(Selectors.cancellationDetailsButton)
+    .wait(Selectors.cancellationDetails)
+    .render(outDir)
+    .click(Selectors.cancellationAgreeButton)
+    .render(outDir)
+    .done()
+);
+
+runner.register('Cancellation with phone screen width (320px)', ['xs', 'cancellation'], {
+  state: 'cancellation',
+  size: 'xs'
+}, new ScenarioCallChain()
+    .wait(Selectors.cancellationPage)
+    .value(Selectors.cancellationFormNumber, config.defaults.cancellationNumber)
+    .value(Selectors.cancellationFormCode, config.defaults.cancellationCode)
+    .sleep(1000)
+    .render(outDir)
+    .click(Selectors.cancellationDetailsButton)
+    .wait(Selectors.cancellationDetails)
+    .render(outDir)
+    .click(Selectors.cancellationAgreeButton)
     .render(outDir)
     .done()
 );
