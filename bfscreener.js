@@ -20,7 +20,6 @@ if (system.args[1] == '/?') {
 }
 
 console.log('Help: phantomjs bfscreener.js /?');
-console.log('');
 
 var BF_QUERY_PARAMS = ['language', 'currency', 'accommodationMode', 'date', 'nights', 'adults', 'children', 'promoCodePlain', 'roomTypes', 'ratePlans', 'state'];
 
@@ -232,6 +231,8 @@ var ScenarioRunner = function(config, allowedTags) {
   var scenarios = [];
   var total = 0;
 
+  this.tags = [];
+
   var runNextScenario = function() {
     if (scenarios.length > 0) {
       var scenario = scenarios.shift();
@@ -258,6 +259,13 @@ var ScenarioRunner = function(config, allowedTags) {
   };
 
   this.register = function(name, tags, scenarioParams, scenarioCb) {
+
+    tags.forEach(function(tag) {
+      if (context.tags.indexOf(tag) < 0) {
+        context.tags.push(tag);
+      }
+    });
+
     if (allowedTags.length && !tags.some(function(tag) {
         return allowedTags.indexOf(tag) >= 0;
       })) {
@@ -462,7 +470,6 @@ var nextMonthTuesday =  new Date(nextMonth.getFullYear(), nextMonth.getMonth(), 
 
 runner.register('Common screen width (1980px) with manual accommodation', ['lg', 'manual', 'search', 'rooms', 'preview', 'complete'], {
   accommodationMode: 'manual',
-  size: 'lg',
   date: Utils.formatDate(wednesday)
 }, new ScenarioCallChain()
     .wait(Selectors.searchFilterPage)
@@ -536,7 +543,6 @@ runner.register('Minimum screen width (200px) with auto accommodation', ['xs', '
 runner.register('Azimut with common screen width (1980px)', ['lg', 'auto', 'search', 'rooms', 'payment', 'azimut'], {
   provider: '86207',
   theme: 'azimut',
-  size: 'lg',
   date: Utils.formatDate(nextMonth),
   accommodationMode: 'auto'
 }, new ScenarioCallChain()
@@ -642,7 +648,6 @@ runner.register('Rate plan price details popover', ['details'], {
 
 runner.register('Order with common screen width (1980px)', ['lg', 'order'], {
   accommodationMode: 'auto',
-  size: 'lg',
   nights: 3,
   adults: 2,
   children: 2,
@@ -688,7 +693,6 @@ runner.register('Promo rate plan', ['auto', 'rooms', 'promo'], {
 );
 
 runner.register('Transfers with common screen width (1980px)', ['lg', 'transfers'], {
-  size: 'lg',
   date: Utils.formatDate(wednesday),
   nights: 1,
   adults: 2,
@@ -715,7 +719,6 @@ runner.register('Transfers with phone screen width (320px)', ['xs', 'transfers']
 );
 
 runner.register('Stay constructor with common screen width (1980px)', ['lg', 'constructor'], {
-  size: 'lg',
   date: Utils.formatDate(wednesday),
   nights: 1,
   accommodationMode: 'manual'
@@ -748,7 +751,6 @@ runner.register('Stay constructor with phone screen width (320px)', ['xs', 'cons
 );
 
 runner.register('Calendar with common screen width (1980px)', ['lg', 'calendar'], {
-  size: 'lg',
   date: Utils.formatDate(wednesday)
 }, new ScenarioCallChain()
     .click(Selectors.searchCalendar)
@@ -767,7 +769,6 @@ runner.register('Calendar with phone screen width (320px)', ['xs', 'calendar'], 
 
 runner.register('Terms with common screen width (1980px)', ['lg', 'terms'], {
   accommodationMode: 'auto',
-  size: 'lg',
   nights: 1,
   adults: 1,
   date: Utils.formatDate(wednesday)
@@ -825,8 +826,7 @@ runner.register('Office description tooltip', ['office'], {
 );
 
 runner.register('Cancellation with common screen width (1980px)', ['lg', 'cancellation'], {
-  state: 'cancellation',
-  size: 'lg'
+  state: 'cancellation'
 }, new ScenarioCallChain()
     .wait(Selectors.cancellationPage)
     .value(Selectors.cancellationFormNumber, config.defaults.cancellationNumber)
@@ -859,8 +859,7 @@ runner.register('Cancellation with phone screen width (320px)', ['xs', 'cancella
 );
 
 runner.register('Static rooms list with common screen width (1980px)', ['lg', 'list'], {
-  state: 'rooms',
-  size: 'lg'
+  state: 'rooms'
 }, new ScenarioCallChain()
     .wait(Selectors.roomsListPage)
     .sleep(500)
@@ -879,5 +878,8 @@ runner.register('Static rooms list with phone screen width (320px)', ['xs', 'lis
 );
 
 // END SCENARIOS
+
+console.log('Available tags: ' + runner.tags.join(', '));
+console.log('');
 
 runner.run();
