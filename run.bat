@@ -1,0 +1,2 @@
+phantomjs bfscreener.js
+pause
