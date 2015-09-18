@@ -34,7 +34,7 @@ var Utils = {
       
     if (isArray) {
       var found = argsMap.filter(function(arg) {
-        return arg[0] == '--' + varName;
+        return arg[0] == '--' + varName && arg[1] != '';
       }).map(function(arg) {
         return arg[1];
       });
@@ -43,7 +43,7 @@ var Utils = {
       var found = argsMap.filter(function(arg) {
         return arg[0] == '--' + varName;
       });
-      return found.length ? found[0][1] : defaultValue;
+      return found.length && found[0][1] != '' ? found[0][1] : defaultValue;
     }
   },
 
