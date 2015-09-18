@@ -400,6 +400,8 @@ var Selectors = {
   roomBookButton: '.x-rate-plan-list .rate-plan__book-btn',
   roomQuantitySelect: '.rate-plan__quantity-select .selectize-input',
   roomQuantitySelectOption: '.rate-plan__quantity-select .ui-select-choices-row:nth-child(2)',
+  roomCancellationRuleButton: '.rate-plan__cancellation_rule._with_text',
+  roomCancellationRule: '.x-rate-plan__popover',
 
   roomConstructor: '.rate-plan__price-details:has(.rate-plan__form)',
   roomConstructorSelect: '.rate-plan__price-details:has(.rate-plan__multiple-placeholder) .selectize-input',
@@ -870,6 +872,17 @@ runner.register('Office description tooltip', ['office'], {
     .click(Selectors.cartProccedBooking)
     .click(Selectors.paymentOfficeButton)
     .render(outDir, Selectors.paymentOffice)
+    .done()
+);
+
+runner.register('Cancellation rule tooltip', ['rule'], {
+  accommodationMode: 'auto',
+  nights: 1,
+  adults: 1,
+  date: Utils.formatDate(wednesday)
+}, new ScenarioCallChain()
+    .click(Selectors.roomCancellationRuleButton)
+    .render(outDir, Selectors.roomCancellationRule)
     .done()
 );
 
