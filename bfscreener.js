@@ -232,6 +232,7 @@ var ScenarioRunner = function(config, allowedTags) {
   var context = this;
   var scenarios = [];
   var total = 0;
+  var errors = 0;
 
   this.tags = [];
 
@@ -242,7 +243,7 @@ var ScenarioRunner = function(config, allowedTags) {
         + ' (' + scenario.tags.join(', ') + ')');
       scenario.run();
     } else {
-      console.log('DONE');
+      console.log('DONE WITH ' + errors + ' ERRORS');
       phantom.exit();
     }
   };
@@ -253,6 +254,7 @@ var ScenarioRunner = function(config, allowedTags) {
 
   var failed = function(error) {
     console.log('Error: ' + error);
+    errors++;
     done();
   };
 
@@ -384,7 +386,8 @@ var ScenarioCallChain = function() {
 
 var Selectors = {
   searchFilterPage: '.p-search-filter__form',
-  searchCalendar: '.x-datepicker__input',
+  searchCalendarButton: '.x-datepicker__input',
+  searchCalendar: '.x-datepicker__popover',
   searchButton: '.p-search-filter__button',
   
   roomsListPage: '.room__list',
@@ -427,6 +430,7 @@ var Selectors = {
   paymentOfficeButton: '.x-payment-list__info-description-icon-wrap',
   paymentOffice: '.x-popover',
 
+  paymentCitizenship: '.x-guest-info__guest-citizenship .selectize-input',
   paymentFormPhone: '[name=contactPhoneNumber]',
   paymentFormEmail: '[name=email]',
   paymentFormLastName: '[name^=lastname]',
@@ -444,7 +448,9 @@ var Selectors = {
   cancellationFormCode: '[name=confirmationCode]',
   cancellationDetailsButton: '.p-auth__submit',
   cancellationDetails: '.p-cancellation',
-  cancellationAgreeButton: '.p-cancellation__agree'
+  cancellationAgreeButton: '.p-cancellation__agree',
+
+  selectDropdown: '.selectize-dropdown:not(.ng-hide)'
 };
 
 // STARTUP
@@ -795,8 +801,8 @@ runner.register('Stay constructor with phone screen width (320px)', ['xs', 'cons
 runner.register('Calendar with common screen width (1980px)', ['lg', 'calendar'], {
   date: Utils.formatDate(wednesday)
 }, new ScenarioCallChain()
-    .click(Selectors.searchCalendar)
-    .render(outDir)
+    .click(Selectors.searchCalendarButton)
+    .render(outDir, Selectors.searchCalendar)
     .done()
 );
 
@@ -804,8 +810,8 @@ runner.register('Calendar with phone screen width (320px)', ['xs', 'calendar'], 
   size: 'xs',
   date: Utils.formatDate(wednesday)
 }, new ScenarioCallChain()
-    .click(Selectors.searchCalendar)
-    .render(outDir)
+    .click(Selectors.searchCalendarButton)
+    .render(outDir, Selectors.searchCalendar)
     .done()
 );
 
@@ -864,6 +870,31 @@ runner.register('Office description tooltip', ['office'], {
     .click(Selectors.cartProccedBooking)
     .click(Selectors.paymentOfficeButton)
     .render(outDir, Selectors.paymentOffice)
+    .done()
+);
+
+runner.register('Rooms select', ['select'], {
+  accommodationMode: 'manual',
+  nights: 1,
+  adults: 1,
+  date: Utils.formatDate(wednesday)
+}, new ScenarioCallChain()
+    .click(Selectors.roomQuantitySelect)
+    .render(outDir, Selectors.selectDropdown)
+    .done()
+);
+
+runner.register('Citizenship select', ['select'], {
+  accommodationMode: 'auto',
+  nights: 1,
+  adults: 1,
+  date: Utils.formatDate(wednesday)
+}, new ScenarioCallChain()
+    .click(Selectors.roomBookButton)
+    .wait(Selectors.previewPage)
+    .click(Selectors.cartProccedBooking)
+    .click(Selectors.paymentCitizenship)
+    .render(outDir, Selectors.selectDropdown)
     .done()
 );
 
