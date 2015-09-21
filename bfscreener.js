@@ -187,9 +187,10 @@ var Config = function() {
   var getUrl = function(params) {
     var baseUrl;
     switch(params.env) {
-      case 'qa': baseUrl = 'https://qatl.ru/booking2/hotel'; break;
-      case 'qa2': baseUrl = 'https://qatl2.ru/booking2/hotel'; break;
-      case 'prod': baseUrl = 'https://travelline.ru/booking2/hotel'; break;
+      case 'dev': baseUrl = 'http://localhost:8800'; break;
+      case 'qa': baseUrl = 'https://qatl.ru/booking2/hotel/' + params.provider + '/' + params.theme; break;
+      case 'qa2': baseUrl = 'https://qatl2.ru/booking2/hotel/' + params.provider + '/' + params.theme; break;
+      case 'prod': baseUrl = 'https://travelline.ru/booking2/hotel/' + params.provider + '/' + params.theme; break;
     }
 
     var query = [];
@@ -199,8 +200,7 @@ var Config = function() {
       }
     });
 
-    return baseUrl + '/' + params.provider + '/' + params.theme + '/?' + params.provider 
-      + '&' + query.join('&');
+    return baseUrl + '/?' + params.provider + '&' + query.join('&');
   };
 
   var mergeParams = function() {
@@ -439,7 +439,7 @@ var Selectors = {
   paymentFormFirstName: '[name^=firstname]',
 
   completePage: '.complete__voucher-content',
-  
+
   cartProccedBooking: '.x-cart__summary-btn',
   
   modalContent: '.x-modal .modal-content',

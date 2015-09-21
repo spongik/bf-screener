@@ -7,14 +7,14 @@
 @@ echo       cancellation, list
 @@ echo.
 
-@@set LNG=
-@@set CUR=
-@@set TAG=
+@@ set LNG=
+@@ set CUR=
+@@ set TAG=
 
-@@set /p LNG="Enter language: "
-@@set /p CUR="Enter currency: "
-@@set /p TAG="Enter tag: "
+@@ set /p LNG="Enter language: "
+@@ set /p CUR="Enter currency: "
+@@ set /p TAG="Enter tag: "
 @@ echo.
 
-@@phantomjs bfscreener.js --lng=%LNG% --cur=%CUR% --tag=%TAG%
-@@pause
+@@ phantomjs bfscreener.js --lng=%LNG% --cur=%CUR% --tag=%TAG%
+@@ pause
