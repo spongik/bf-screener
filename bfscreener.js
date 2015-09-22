@@ -452,7 +452,7 @@ var Selectors = {
   cancellationDetails: '.p-cancellation',
   cancellationAgreeButton: '.p-cancellation__agree',
 
-  selectDropdownTl: '.x-select._opened .x-select__choices'
+  selectDropdownTl: '.x-select._opened .x-select__choices',
   selectDropdown: '.selectize-dropdown:not(.ng-hide)'
 };
 
