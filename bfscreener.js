@@ -398,15 +398,15 @@ var Selectors = {
   roomPriceDetails: '.x-popover',
   roomInfoButton: '.room__list .x-room-group',
   roomBookButton: '.x-rate-plan-list .rate-plan__book-btn',
-  roomQuantitySelect: '.rate-plan__quantity-select .selectize-input',
-  roomQuantitySelectOption: '.rate-plan__quantity-select .ui-select-choices-row:nth-child(2)',
+  roomQuantitySelect: '.rate-plan__quantity-select .x-select__match',
+  roomQuantitySelectOption: '.rate-plan__quantity-select .x-select__choice:nth-child(2)',
   roomCancellationRuleButton: '.rate-plan__cancellation_rule._with_text',
   roomCancellationRule: '.x-rate-plan__popover',
 
   roomConstructor: '.rate-plan__price-details:has(.rate-plan__form)',
-  roomConstructorSelect: '.rate-plan__price-details:has(.rate-plan__multiple-placeholder) .selectize-input',
-  roomConstructorSelectOption1: '.rate-plan__price-details:has(.rate-plan__multiple-placeholder) .ui-select-choices-row:nth-child(2)',
-  roomConstructorSelectOption2: '.rate-plan__price-details:has(.rate-plan__multiple-placeholder) .ui-select-choices-row:nth-child(3)',
+  roomConstructorSelect: '.rate-plan__price-details:has(.rate-plan__multiple-placeholder) .x-select__match',
+  roomConstructorSelectOption1: '.rate-plan__price-details:has(.rate-plan__multiple-placeholder) .x-select__choice:nth-child(2)',
+  roomConstructorSelectOption2: '.rate-plan__price-details:has(.rate-plan__multiple-placeholder) .x-select__choice:nth-child(3)',
   roomConstructorExtra: '.rate-plan__extra .x-title',
 
   roomUnavailable: '.room__list-item:has(.room__availability-calendar)',
@@ -452,6 +452,7 @@ var Selectors = {
   cancellationDetails: '.p-cancellation',
   cancellationAgreeButton: '.p-cancellation__agree',
 
+  selectDropdownTl: '.x-select._opened .x-select__choices'
   selectDropdown: '.selectize-dropdown:not(.ng-hide)'
 };
 
@@ -893,7 +894,7 @@ runner.register('Rooms select', ['select'], {
   date: Utils.formatDate(wednesday)
 }, new ScenarioCallChain()
     .click(Selectors.roomQuantitySelect)
-    .render(outDir, Selectors.selectDropdown)
+    .render(outDir, Selectors.selectDropdownTl)
     .done()
 );
 
