@@ -667,11 +667,21 @@ runner.register('Room availability calendar', ['availability'], {
     .done()
 );
 
-runner.register('Unavailable rooms with availability calendar', ['availability'], {
+runner.register('Unavailable rooms with availability calendar (1980px)', ['lg', 'availability'], {
   nights: 1,
   date: Utils.formatDate(tuesday)
 }, new ScenarioCallChain()
     .wait(Selectors.noRoomsPage)
+    .render(outDir)
+    .done()
+);
+
+runner.register('Unavailable rooms with availability calendar (320px)', ['xs', 'availability'], {
+  nights: 1,
+  size: 'xs',
+  date: Utils.formatDate(tuesday)
+}, new ScenarioCallChain()
+    .wait(Selectors.roomAvailability)
     .render(outDir)
     .done()
 );
