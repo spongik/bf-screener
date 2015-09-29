@@ -411,9 +411,9 @@ var Selectors = {
 
   roomUnavailable: '.room__list-item:has(.room__availability-calendar)',
   roomAvailabilityExpand: '.x-availability-calendar-expandable__button .x-title',
-  roomAvailability: '.x-availability-calendar__slider-availability._state_valid',
+  roomAvailability: '.x-availability-calendar-price__item-price._state_valid',
 
-  noRoomsPage: '.no-rooms-view__message',
+  noRoomsPage: '.p-no-rooms-view__message',
 
   roomInfoPage: '.room-info',
   roomInfoRateDetails: '.rate-plan__open-details',
