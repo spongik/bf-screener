@@ -416,7 +416,7 @@ var Selectors = {
   noRoomsPage: '.p-no-rooms-view__message',
 
   roomInfoPage: '.room-info',
-  roomInfoRateDetails: '.rate-plan__open-details',
+  roomInfoRateDetails: '.rate-plan__info-open',
 
   previewPage: '.p-preview',
   previewTransfer: '.x-transfer__container',
