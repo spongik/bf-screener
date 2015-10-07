@@ -421,6 +421,8 @@ var Selectors = {
   previewPage: '.p-preview',
   previewTransfer: '.x-transfer__container',
   previewTransferExpand: '.x-transfer .x-title',
+  previewOption: '.p-preview__item:last',
+  previewOptionExpand: '.p-preview__item:last .x-title',
 
   paymentPage: '.x-payment-list',
   paymentBook: '.x-payment-list__book-btn',
@@ -776,6 +778,34 @@ runner.register('Transfers with phone screen width (320px)', ['xs', 'transfers']
     .click(Selectors.roomBookButton)
     .click(Selectors.previewTransferExpand)
     .render(outDir, Selectors.previewTransfer)
+    .done()
+);
+
+runner.register('Expandable option with common screen width (1980px)', ['lg', 'option'], {
+  date: Utils.formatDate(wednesday),
+  nights: 1,
+  adults: 2,
+  accommodationMode: 'auto'
+}, new ScenarioCallChain()
+    .click(Selectors.roomBookButton)
+    .render(outDir, Selectors.previewOption)
+    .click(Selectors.previewOptionExpand)
+    .render(outDir, Selectors.previewOption)
+    .done()
+);
+
+runner.register('Expandable option with phone screen width (320px)', ['xs', 'option'], {
+  size: 'xs',
+  date: Utils.formatDate(wednesday),
+  nights: 1,
+  adults: 2,
+  accommodationMode: 'auto'
+}, new ScenarioCallChain()
+    .click(Selectors.roomInfoButton)
+    .click(Selectors.roomBookButton)
+    .render(outDir, Selectors.previewOption)
+    .click(Selectors.previewOptionExpand)
+    .render(outDir, Selectors.previewOption)
     .done()
 );
 
