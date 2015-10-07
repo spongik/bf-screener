@@ -391,9 +391,9 @@ var Selectors = {
   searchButton: '.p-search-filter__button',
   
   roomsListPage: '.room__list',
-  roomRateExpand: '.rate-plan__title .x-title',
+  roomRateExpand: '.rate-plan__title.x-title',
   roomRatesExpand: '.rate-plan__expand',
-  roomDescriptionExpand: '.room__name .x-title',
+  roomDescriptionExpand: '.room__name.x-title',
   roomPriceDetailsButton: '.rate-plan__popover-btn',
   roomPriceDetails: '.x-popover',
   roomInfoButton: '.room__list .x-room-group',
@@ -410,7 +410,7 @@ var Selectors = {
   roomConstructorExtra: '.rate-plan__extra .x-title',
 
   roomUnavailable: '.room__list-item:has(.room__availability-calendar)',
-  roomAvailabilityExpand: '.x-availability-calendar-expandable__button .x-title',
+  roomAvailabilityExpand: '.x-availability-calendar-expandable__button.x-title',
   roomAvailability: '.x-availability-calendar-price__item-price._state_valid',
 
   noRoomsPage: '.p-no-rooms-view__message',
