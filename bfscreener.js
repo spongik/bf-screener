@@ -413,7 +413,7 @@ var Selectors = {
   roomAvailabilityExpand: '.x-availability-calendar-expandable__button.x-title',
   roomAvailability: '.x-availability-calendar-price__item-price._state_valid',
 
-  noRoomsPage: '.p-no-rooms-view__message',
+  noRoomsPage: '.p-no-rooms-view',
 
   roomInfoPage: '.room-info',
   roomInfoRateDetails: '.rate-plan__info-open',
