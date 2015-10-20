@@ -4,7 +4,7 @@
 @@ echo Tags: xs, sm, md, lg, auto, manual, search, rooms, preview, complete, 
 @@ echo       payment, azimut, availability, details, order, promo, transfers, 
 @@ echo       constructor, calendar, terms, instruction, office, rule, select, 
-@@ echo       cancellation, list, option
+@@ echo       cancellation, list, option, guest
 @@ echo.
 
 @@ set LNG=

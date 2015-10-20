@@ -6,13 +6,13 @@ if (system.args[1] == '/?') {
   console.log('Available params:');
   console.log('\t--out=screens\t\tOutput directory');
   console.log('\t--env=qa\t\tBooking form environment (qa, qa2, prod)');
-  console.log('\t--tag\t\tOnly run scenarions with given tag. Multiple tags are allowed');
+  console.log('\t--tag\t\t\tOnly run scenarions with given tag. Multiple tags are allowed');
   console.log('\t--lng=ru\t\tBooking form language (ru, en, fr, uk, kk, cs, zh)');
-  console.log('\t--cur\t\tBooking form currency (RUB, USD, EUR, AMD, AZN, BYR, CNY, GBP, KGS, KZT, TJS, UAH, CHF, TND, GEL)');
+  console.log('\t--cur\t\t\tBooking form currency (RUB, USD, EUR, AMD, AZN, BYR, CNY, GBP, KGS, KZT, TJS, UAH, CHF, TND, GEL)');
   console.log('\t--provider=2796\t\tBooking form provider');
   console.log('\t--theme=default\t\tBooking form theme');
   console.log('\t--size=lg\t\tScreen size (xs, sm, md, lg)');
-  console.log('\t--promo\t\tApply promo code');
+  console.log('\t--promo\t\t\tApply promo code');
   console.log('');
   console.log('Example: phantom bfscreener.js --out=imgs --env=prod --tag=xs --tag=transfers');
   console.log('');
@@ -75,6 +75,7 @@ var Utils = {
   renderElement: function(page, outDir, scenario, selector) {
     var originalViewport = page.clipRect;
     var viewport = page.evaluate(function(selector) {
+      document.body.scrollTop = 0;
       return $(selector).get(0).getBoundingClientRect();
     }, selector);
 
@@ -433,6 +434,7 @@ var Selectors = {
   paymentInstruction: '.x-payment-list__info-payment-instruction a',
   paymentOfficeButton: '.x-payment-list__info-description-icon-wrap',
   paymentOffice: '.x-popover',
+  paymentGuest: '.x-guest-info',
 
   paymentCitizenship: '.x-guest-info__guest-citizenship .selectize-input',
   paymentFormPhone: '[name=contactPhoneNumber]',
@@ -743,6 +745,50 @@ runner.register('Order with phone screen width (320px)', ['xs', 'order'], {
     .done()
 );
 
+runner.register('Guests validation with common screen width (1980px)', ['lg', 'guest'], {
+  accommodationMode: 'auto',
+  nights: 1,
+  adults: 1,
+  date: Utils.formatDate(wednesday)
+}, new ScenarioCallChain()
+    .click(Selectors.roomBookButton)
+    .wait(Selectors.previewPage)
+    .click(Selectors.cartProccedBooking)
+    .click(Selectors.paymentBook)
+    .value(Selectors.paymentFormLastName, 'lastname')
+    .value(Selectors.paymentFormFirstName, 'firstname')
+    .sleep(1000)
+    .render(outDir, Selectors.paymentGuest)
+    .value(Selectors.paymentFormLastName, '')
+    .value(Selectors.paymentFormFirstName, '!@#$#%')
+    .sleep(1000)
+    .render(outDir, Selectors.paymentGuest)
+    .done()
+);
+
+runner.register('Guests validation with phone screen width (320px)', ['xs', 'guest'], {
+  accommodationMode: 'auto',
+  size: 'xs',
+  nights: 1,
+  adults: 1,
+  date: Utils.formatDate(wednesday)
+}, new ScenarioCallChain()
+    .click(Selectors.roomInfoButton)
+    .click(Selectors.roomBookButton)
+    .wait(Selectors.previewPage)
+    .click(Selectors.cartProccedBooking)
+    .click(Selectors.paymentBook)
+    .value(Selectors.paymentFormLastName, 'lastname')
+    .value(Selectors.paymentFormFirstName, 'firstname')
+    .sleep(1000)
+    .render(outDir, Selectors.paymentGuest)
+    .value(Selectors.paymentFormLastName, '')
+    .value(Selectors.paymentFormFirstName, '!@#$#%')
+    .sleep(1000)
+    .render(outDir, Selectors.paymentGuest)
+    .done()
+);
+
 runner.register('Promo rate plan', ['auto', 'rooms', 'promo'], {
   nights: 1,
   adults: 1,
@@ -833,11 +879,11 @@ runner.register('Stay constructor with phone screen width (320px)', ['xs', 'cons
     .click(Selectors.roomInfoButton)
     .click(Selectors.roomConstructorSelect)
     .click(Selectors.roomConstructorSelectOption1)
-    .render(outDir)
+    .render(outDir, Selectors.roomConstructor)
     .click(Selectors.roomConstructorExtra)
     .click(Selectors.roomConstructorSelect)
     .click(Selectors.roomConstructorSelectOption2)
-    .render(outDir)
+    .render(outDir, Selectors.roomConstructor)
     .done()
 );
 
